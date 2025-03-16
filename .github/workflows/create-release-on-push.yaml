@@ -1,0 +1,65 @@
+name: Create Release on Push
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - uses: git-actions/set-user@v1
+
+      - name: Generate version number
+        id: version
+        run: echo "version=$(date +'%Y%m%d')-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Get repository name
+        id: repo_name
+        run: echo "repo=$(basename $GITHUB_REPOSITORY)" >> $GITHUB_ENV
+
+      - name: Update version in index.php (temporary change for release only)
+        run: |
+          sed -i -E "s/(\* Version:[[:space:]]*)0\.0\.0/\1${{ env.version }}/I" index.php
+
+      - name: Create a ZIP archive of the repository
+        run: |
+          zip -r "${{ env.repo }}.zip" . -x "*.git*"
+
+      - name: Get previous tag
+        id: prev_tag
+        run: |
+          echo "previous=$(git describe --tags --abbrev=0 2>/dev/null || echo '')" >> $GITHUB_ENV
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          if [ -n "${{ env.previous }}" ]; then
+            git log ${{ env.previous }}..HEAD --pretty=format:"- %s" > release_notes.txt
+          else
+            git log --pretty=format:"- %s" > release_notes.txt
+          fi
+
+      - name: Create Git tag
+        run: |
+          git tag -a "v${{ env.version }}" -m "Release ${{ env.version }}"
+          git push origin "v${{ env.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: 'v${{ env.version }}'
+          name: 'Release ${{ env.version }}'
+          body_path: release_notes.txt
+          files: '${{ env.repo }}.zip'
+          draft: false
+          prerelease: false
+
