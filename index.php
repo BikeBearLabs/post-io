@@ -228,7 +228,8 @@ add_filter('the_content', function (string $content) {
 	}, $content);
 }, 10);
 
-function is_excluded_post(WP_Post $post) {
+function is_excluded_post(WP_Post $post)
+{
 	$is_excluded = $post->post_name === ''
 		|| wp_is_post_revision($post)
 		|| wp_is_post_autosave($post)
@@ -245,7 +246,8 @@ function is_excluded_post(WP_Post $post) {
 	return $is_excluded;
 }
 
-function get_additional_dependencies(WP_Post $post) {
+function get_additional_dependencies(WP_Post $post)
+{
 	/** @var int[] */
 	$dependencies = [];
 	$dependencies = apply_filters(
@@ -264,7 +266,8 @@ function get_additional_dependencies(WP_Post $post) {
 	return $dependencies;
 }
 
-function commit_post(int $post_id, string $short_name, string $post_content) {
+function commit_post(int $post_id, string $short_name, string $post_content)
+{
 	$post = get_post($post_id);
 	$post->post_name = $short_name;
 	$post->post_content = $post_content;
@@ -273,7 +276,8 @@ function commit_post(int $post_id, string $short_name, string $post_content) {
 	wp_update_post($post);
 }
 
-function get_mirrored_post_path(int $post_id, string $qualified_name, string $post_type) {
+function get_mirrored_post_path(int $post_id, string $qualified_name, string $post_type)
+{
 	global $mirror_dir_disk;
 
 	$name = implode('+', array_map(function ($name) {
@@ -284,7 +288,8 @@ function get_mirrored_post_path(int $post_id, string $qualified_name, string $po
 	return "$mirror_dir_disk/$type_prefix$name.$post_id.html";
 }
 
-function get_qualified_post_name(WP_Post|int $post) {
+function get_qualified_post_name(WP_Post|int $post)
+{
 	// traverse ancestors & create a "+" delimited strings of all their names
 	$ancestor_ids = get_post_ancestors($post);
 	$ancestor_names = array_map(function ($id) {
@@ -299,7 +304,8 @@ function get_qualified_post_name(WP_Post|int $post) {
 }
 
 /** @return string|null */
-function find_mirrored_post_path(int $post_id) {
+function find_mirrored_post_path(int $post_id)
+{
 	global $mirror_dir_disk;
 
 	if (!file_exists($mirror_dir_disk))
@@ -321,12 +327,14 @@ function find_mirrored_post_path(int $post_id) {
 	return $path;
 }
 
-function write_mirrored_post(string $path, string $post_content, \WP_Post $post) {
+function write_mirrored_post(string $path, string $post_content, \WP_Post $post)
+{
 	$serialized_post_content = serialize_post_content($path, $post_content, $post);
 	file_put_contents($path, $serialized_post_content);
 }
 
-function read_mirrored_post(string $path, \WP_Post $post) {
+function read_mirrored_post(string $path, \WP_Post $post)
+{
 	$post_content = file_get_contents($path);
 	if ($post_content === false) return null;
 
@@ -335,7 +343,8 @@ function read_mirrored_post(string $path, \WP_Post $post) {
 	return $deserialized_post_content;
 }
 
-function serialize_post_content(string $path, string $post_content, \WP_Post $post) {
+function serialize_post_content(string $path, string $post_content, \WP_Post $post)
+{
 	return apply_filters(
 		'post_io/serialize_post_content',
 		$post_content,
@@ -344,7 +353,8 @@ function serialize_post_content(string $path, string $post_content, \WP_Post $po
 	);
 }
 
-function deserialize_post_content(string $path, string $post_content, \WP_Post $post) {
+function deserialize_post_content(string $path, string $post_content, \WP_Post $post)
+{
 	return apply_filters(
 		'post_io/deserialize_post_content',
 		$post_content,
@@ -353,25 +363,29 @@ function deserialize_post_content(string $path, string $post_content, \WP_Post $
 	);
 }
 
-function get_id_from_mirrored_post_path(string $path) {
+function get_id_from_mirrored_post_path(string $path)
+{
 	preg_match('/\.(\d+)\.[a-zA-Z]*$/', basename($path), $matches);
 
 	return $matches[1];
 }
 
-function get_qualified_name_from_mirrored_post_path(string $path) {
+function get_qualified_name_from_mirrored_post_path(string $path)
+{
 	preg_match('/^(?:[^.]*\.)?(.*?)\.\d+\.[a-zA-Z]*$/', basename($path), $matches);
 
 	return $matches[1];
 }
 
-function get_short_name(string $qualified_name) {
+function get_short_name(string $qualified_name)
+{
 	$names = explode('+', $qualified_name);
 
 	return end($names);
 }
 
-function sniff_post_id() {
+function sniff_post_id()
+{
 	if (!current_user_can('edit_posts'))
 		return get_post()?->ID;
 
@@ -386,13 +400,13 @@ function sniff_post_id() {
 			$post_id = $post->ID;
 		}
 	if (!is_numeric($post_id))
-		$post_id = @$_GET['post'];
+		$post_id = $_GET['post'] ?? null;
 	if (!is_numeric($post_id))
-		$post_id = @$_GET['post_id'];
+		$post_id = $_GET['post_id'] ?? null;
 	if (!is_numeric($post_id))
-		$post_id = @$_GET['postId'];
+		$post_id = $_GET['postId'] ?? null;
 	if (!is_numeric($post_id)) {
-		$p = @$_GET['p'];
+		$p = $_GET['p'] ?? null;
 		if ($p) {
 			preg_match('/^\/wp_block\/(\d+)$/', $p, $matches);
 			if (count($matches) > 1)
