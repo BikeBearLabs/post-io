@@ -181,7 +181,7 @@ add_filter('the_content', function (string $content) {
 				$dependency_post->post_content !== $content
 				|| $dependency_post->post_name !== $short_name
 			) {
-				commit_post($dependency_post->ID, $short_name, $content);
+				commit_post($dependency_post->ID, $dependency_post->post_name, $content);
 				$dependency_post->post_content = $content;
 			}
 		} else {
