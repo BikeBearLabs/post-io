@@ -140,10 +140,6 @@ add_action('delete_post', function (int $post_id) {
 	if ($path) unlink($path);
 });
 
-add_filter('run_wptexturize', function () {
-	return false;
-});
-
 add_filter('the_content', function (string $content) {
 	if (
 		// is not admin
