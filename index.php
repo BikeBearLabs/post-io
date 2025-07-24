@@ -321,9 +321,8 @@ function find_mirrored_post_path(int $post_id)
 	return $path;
 }
 
-function update_mirrored_post(string $path, string $post_content, \WP_Post $post)
+function update_mirrored_post(?string $path, string $post_content, \WP_Post $post)
 {
-	$path = find_mirrored_post_path($post->ID);
 	if (!$path) {
 		write_mirrored_post(
 			get_mirrored_post_path(
