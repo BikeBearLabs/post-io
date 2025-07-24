@@ -50,6 +50,38 @@ register_activation_hook(__FILE__, function () {
 	}
 
 	file_put_contents(POSTS_METADATA_FILE, json_encode($metadata));
+
+	$post_types = get_post_types(['public' => true], 'names');
+	$post_types = array_merge($post_types, ['wp_block', 'wp_template', 'wp_template_part']);
+
+	foreach ($post_types as $post_type) {
+		$page = 1;
+		$posts_per_page = 100;
+
+		do {
+			$query = new WP_Query([
+				'post_type' => $post_type,
+				'post_status' => ['publish'],
+				'posts_per_page' => $posts_per_page,
+				'paged' => $page,
+				'no_found_rows' => false,
+			]);
+
+			$posts = $query->get_posts();
+
+			foreach ($posts as $post) {
+				if (is_excluded_post($post)) continue;
+
+				update_mirrored_post(
+					find_mirrored_post_path($post->ID),
+					$post->post_content,
+					$post
+				);
+			}
+
+			$page++;
+		} while ($page <= $query->max_num_pages);
+	}
 });
 
 add_action('admin_init', function () {
@@ -81,47 +113,13 @@ add_action('admin_init', function () {
 
 add_action('save_post', function (int $post_id) {
 	$post = get_post($post_id);
-
 	if (!$post || is_excluded_post($post)) return;
 
-	$path = find_mirrored_post_path($post->ID);
-	if (!$path) {
-		write_mirrored_post(
-			get_mirrored_post_path(
-				$post->ID,
-				get_qualified_post_name($post),
-				$post->post_type
-			),
-			$post->post_content,
-			$post,
-		);
-
-		return;
-	}
-
-	$qualified_name = get_qualified_name_from_mirrored_post_path($path);
-	$short_name = get_short_name($qualified_name);
-	if (
-		filesize($path) !== strlen($post->post_content)
-		|| read_mirrored_post($path, $post) !== $post->post_content
-	) {
-		write_mirrored_post(
-			get_mirrored_post_path($post->ID, $qualified_name, $post->post_type),
-			$post->post_content,
-			$post,
-		);
-	}
-
-	if ($post->post_name !== $short_name) {
-		$stale_path = get_mirrored_post_path(
-			$post->ID,
-			get_qualified_post_name($post),
-			$post->post_type
-		);
-
-		if (file_exists($stale_path))
-			unlink($stale_path);
-	}
+	update_mirrored_post(
+		find_mirrored_post_path($post->ID),
+		$post->post_content,
+		$post
+	);
 });
 
 add_action('trash_post', function (int $post_id) {
@@ -234,7 +232,11 @@ function is_excluded_post(WP_Post $post)
 		|| wp_is_post_revision($post)
 		|| wp_is_post_autosave($post)
 		|| $post->post_type === 'attachment'
-		|| $post->post_type === 'wp_navigation'
+		|| str_starts_with($post->post_type, 'wp_') && (
+			$post->post_type !== 'wp_block'
+			&& $post->post_type !== 'wp_template_part'
+			&& $post->post_type !== 'wp_template'
+		)
 		|| str_starts_with($post->post_type, 'acf-');
 	$is_excluded = apply_filters(
 		'post_io/exclude_post',
@@ -321,6 +323,48 @@ function find_mirrored_post_path(int $post_id)
 
 	found:
 	return $path;
+}
+
+function update_mirrored_post(string $path, string $post_content, \WP_Post $post)
+{
+	$path = find_mirrored_post_path($post->ID);
+	if (!$path) {
+		write_mirrored_post(
+			get_mirrored_post_path(
+				$post->ID,
+				get_qualified_post_name($post),
+				$post->post_type
+			),
+			$post_content,
+			$post,
+		);
+
+		return;
+	}
+
+	$qualified_name = get_qualified_name_from_mirrored_post_path($path);
+	$short_name = get_short_name($qualified_name);
+	if (
+		filesize($path) !== strlen($post_content)
+		|| read_mirrored_post($path, $post) !== $post_content
+	) {
+		write_mirrored_post(
+			get_mirrored_post_path($post->ID, $qualified_name, $post->post_type),
+			$post_content,
+			$post,
+		);
+	}
+
+	if ($post->post_name !== $short_name) {
+		$stale_path = get_mirrored_post_path(
+			$post->ID,
+			get_qualified_post_name($post),
+			$post->post_type
+		);
+
+		if (file_exists($stale_path))
+			unlink($stale_path);
+	}
 }
 
 function write_mirrored_post(string $path, string $post_content, \WP_Post $post)
