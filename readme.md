@@ -18,6 +18,10 @@ When you save the page in the WordPress admin, refresh the page in your browser,
 
 Migration of posts between domains is as simple as copying the `wp-content/posts` directory from one domain to another. Then, ensuring the `posts.json` is copied as well & deactivate & reactivate the plugin to ensure the posts' URLs are migrated.
 
+## Future Plans
+
+[ ] Deprecate this plugin & roll it into [Bear](https://github.com/sxxov/bear). It is currently reimplementing a lot of functionality, such as the surprisingly complex dependency crawling based on blocks. Would be great if we didn't have to do that!
+
 ## License
 
 MIT
