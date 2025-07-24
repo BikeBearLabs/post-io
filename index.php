@@ -9,14 +9,14 @@
 
 if (!defined('ABSPATH')) exit;
 
-$mirror_dir_disk = WP_CONTENT_DIR . '/posts';
-$metadata_file_disk = "$mirror_dir_disk/posts.json";
+const POSTS_DIRECTORY = WP_CONTENT_DIR . '/posts';
+const POSTS_METADATA_FILE = POSTS_DIRECTORY . '/posts.json';
 
-register_activation_hook(__FILE__, function () use ($metadata_file_disk, $mirror_dir_disk) {
+register_activation_hook(__FILE__, function () {
 	$live_site_url = site_url();
 
 	/** @var array{version:int,site:array{url:string}} */
-	$metadata = json_decode(file_get_contents($metadata_file_disk) ?: '[]', true) ?: [];
+	$metadata = json_decode(file_get_contents(POSTS_METADATA_FILE) ?: '[]', true) ?: [];
 	$metadata['version'] ??= 1;
 	$metadata['site'] ??= [];
 	$metadata['site']['url'] ??= $live_site_url;
@@ -29,7 +29,7 @@ register_activation_hook(__FILE__, function () use ($metadata_file_disk, $mirror
 
 	$should_migrate = $should_migrate_site_url /* || rest */;
 	if ($should_migrate) {
-		$paths = glob(trailingslashit($mirror_dir_disk) . '*.html');
+		$paths = glob(trailingslashit(POSTS_DIRECTORY) . '*.html');
 
 		foreach ($paths as $path) {
 			$content = file_get_contents($path);
@@ -49,7 +49,7 @@ register_activation_hook(__FILE__, function () use ($metadata_file_disk, $mirror
 		}
 	}
 
-	file_put_contents($metadata_file_disk, json_encode($metadata));
+	file_put_contents(POSTS_METADATA_FILE, json_encode($metadata));
 });
 
 add_action('admin_init', function () {
@@ -278,14 +278,12 @@ function commit_post(int $post_id, string $short_name, string $post_content)
 
 function get_mirrored_post_path(int $post_id, string $qualified_name, string $post_type)
 {
-	global $mirror_dir_disk;
-
 	$name = implode('+', array_map(function ($name) {
 		return sanitize_title($name);
 	}, explode('+', $qualified_name)));
 	$type_prefix = $post_type === 'page' ? '' : "$post_type.";
 
-	return "$mirror_dir_disk/$type_prefix$name.$post_id.html";
+	return POSTS_DIRECTORY . "/$type_prefix$name.$post_id.html";
 }
 
 function get_qualified_post_name(WP_Post|int $post)
@@ -306,19 +304,17 @@ function get_qualified_post_name(WP_Post|int $post)
 /** @return string|null */
 function find_mirrored_post_path(int $post_id)
 {
-	global $mirror_dir_disk;
-
-	if (!file_exists($mirror_dir_disk))
-		mkdir($mirror_dir_disk);
-	if ($handle = opendir($mirror_dir_disk)) {
+	if (!file_exists(POSTS_DIRECTORY))
+		mkdir(POSTS_DIRECTORY);
+	if ($handle = opendir(POSTS_DIRECTORY)) {
 		while ($filename = readdir($handle)) {
 			if (preg_match("/\.$post_id\.[a-zA-Z]*$/", $filename)) {
-				$path = "$mirror_dir_disk/$filename";
+				$path = POSTS_DIRECTORY . "/$filename";
 				goto found;
 			}
 		}
 		closedir($handle);
-	} else throw new Exception("Could not open directory $mirror_dir_disk");
+	} else throw new Exception("Could not open directory " . POSTS_DIRECTORY);
 
 	not_found:
 	return null;
